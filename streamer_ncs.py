@@ -56,10 +56,12 @@ cam.set(cv2.CAP_PROP_FRAME_WIDTH, widowWidth)
 cam.set(cv2.CAP_PROP_FRAME_HEIGHT, windowHeight)
 
 lock = Lock()
+output_lock = Lock()
 frameBuffer = []
 results = Queue()
 img_to_display = Queue()
 lastresults = None
+threads = []
 
 LABELS = ('background',
           'aeroplane', 'bicycle', 'bird', 'boat',
@@ -126,6 +128,7 @@ def inferencer(results, lock, frameBuffer, handle):
         handle.LoadTensor(im.astype(np.float16), None)
         out, userobj = handle.GetResult()
         results.put(out)
+        print("elapsedtime = ", time.time() - now)
 
 def preprocess_image(src):
     img = cv2.resize(src, (300, 300))
@@ -200,7 +203,7 @@ def overlay_on_image(display_image, object_info):
                 cv2.putText(img_cp, label_text, (label_left, label_bottom), cv2.FONT_HERSHEY_SIMPLEX, 0.5, label_text_color, 1)
     return img_cp
 
-threads = []
+
 
 class CamHandler(BaseHTTPRequestHandler):
     def __init__(self, request, client_address, server):
@@ -228,8 +231,9 @@ class CamHandler(BaseHTTPRequestHandler):
             self.end_headers()
             while True:
                 try:
+                    output_lock.acquire()
                     image_for_result = img_to_display.get(True)
-
+                    output_lock.release()
                     retval, jpg = cv2.imencode('.jpg', image_for_result)
                     if not retval:
                         raise RuntimeError('Could not encode img to JPEG')
@@ -255,7 +259,7 @@ class CamHandler(BaseHTTPRequestHandler):
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     """Handle requests in a separate thread."""
-    def __init__(self, capture_path, server_address, RequestHandlerClass, bind_and_activate=True):
+    def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
         HTTPServer.__init__(self, server_address, RequestHandlerClass, bind_and_activate)
         ThreadingMixIn.__init__(self)
 
@@ -270,7 +274,7 @@ def main():
     c_t = Thread(target=camThread)
     c_t.start()
     threads.append(c_t)
-    server = ThreadedHTTPServer("empty",('0.0.0.0', 8080), CamHandler)
+    server = ThreadedHTTPServer(('0.0.0.0', 8080), CamHandler)
     print("server started")
     server.serve_forever()
 
