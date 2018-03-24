@@ -9,5 +9,11 @@ The NCS runs mobilenets on Caffe which enables object detection.
 
 # Installation
 * Clone the repo
-* python3 streamer.py
+* python3 streamer_ncs.py
 * Open http://YOUR_PI_IP:8080/cam.mjpg
+
+
+#Ackowlegement
+
+*https://qiita.com/PINTO/items/b97b3334ed452cb555e2
+*https://www.pyimagesearch.com/2018/02/19/real-time-object-detection-on-the-raspberry-pi-with-the-movidius-ncs/
