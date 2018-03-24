@@ -2,6 +2,8 @@
 A Python program that host a webserver to stream video from the Pi Camera with Intel's Neural Compute stick. 
 The NCS runs mobilenets on Caffe which enables object detection.
 
+![Alt Text](https://i.imgflip.com/2714hl.gif)
+
 # Pre-reqs
 * Install the lastest version of Raspbian
 * Install the NCSDK : https://github.com/movidius/ncsdk
