@@ -70,7 +70,7 @@ LABELS = ('background',
           'motorbike', 'person', 'pottedplant',
           'sheep', 'sofa', 'train', 'tvmonitor')
 
-def camThread():   
+def camThread(results,lock,output_lock):   
     global lastresults
     while True:
         pass
@@ -95,16 +95,20 @@ def camThread():
             #img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             h, w = img.shape[:2]
             lastresults = res
+            lock.acquire()
             if img_to_display.qsize()>20:
                 img_to_display.get()
             img_to_display.put(img)
+            lock.release()
         else:
             imdraw = overlay_on_image(img, lastresults)
             #imdraw = cv2.cvtColor(imdraw, cv2.COLOR_BGR2RGB)
             h, w = imdraw.shape[:2]
+            lock.acquire()
             if img_to_display.qsize()>20:
                 img_to_display.get()
             img_to_display.put(imdraw)
+            lock.release()
 
 
 def inferencer(results, lock, frameBuffer, handle):
@@ -115,7 +119,7 @@ def inferencer(results, lock, frameBuffer, handle):
         lock.acquire()
         if len(frameBuffer) == 0:
             lock.release()
-            failure += 1
+           # failure += 1
             continue
 
         img = frameBuffer[-1].copy()
@@ -271,7 +275,7 @@ def main():
         t = Thread(target=inferencer, args=(results, lock, frameBuffer, graphHandle[devnum]))
         t.start()
         threads.append(t)
-    c_t = Thread(target=camThread)
+    c_t = Thread(target=camThread, args=(results,lock,output_lock))
     c_t.start()
     threads.append(c_t)
     server = ThreadedHTTPServer(('0.0.0.0', 8080), CamHandler)
