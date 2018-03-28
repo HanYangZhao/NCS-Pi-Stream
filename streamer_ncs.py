@@ -75,7 +75,7 @@ def camThread(results,lock,output_lock):
     while True:
         pass
         s, img = cam.read()
-        img = cv2.flip(img,-1)
+        #img = cv2.flip(img,-1)
 
         if not s:
             print("Could not get frame")
@@ -85,8 +85,9 @@ def camThread(results,lock,output_lock):
         if len(frameBuffer)>10:
             for i in range(10):
                 del frameBuffer[0]
-        frameBuffer.append(img)
         lock.release()
+        frameBuffer.append(img)
+        
         res = None
 
         if not results.empty():
@@ -95,20 +96,22 @@ def camThread(results,lock,output_lock):
             #img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             h, w = img.shape[:2]
             lastresults = res
-            lock.acquire()
-            if img_to_display.qsize()>20:
+            #output_lock.acquire()
+            if img_to_display.qsize()>50:
+                #print("deleting")
                 img_to_display.get()
             img_to_display.put(img)
-            lock.release()
+            #output_lock.release()
         else:
             imdraw = overlay_on_image(img, lastresults)
             #imdraw = cv2.cvtColor(imdraw, cv2.COLOR_BGR2RGB)
             h, w = imdraw.shape[:2]
-            lock.acquire()
-            if img_to_display.qsize()>20:
+            #output_lock.acquire()
+            if img_to_display.qsize()>50:
+                #print("deleting")
                 img_to_display.get()
             img_to_display.put(imdraw)
-            lock.release()
+            #output_lock.release()
 
 
 def inferencer(results, lock, frameBuffer, handle):
@@ -235,9 +238,9 @@ class CamHandler(BaseHTTPRequestHandler):
             self.end_headers()
             while True:
                 try:
-                    output_lock.acquire()
+                    #output_lock.acquire()
                     image_for_result = img_to_display.get(True)
-                    output_lock.release()
+                    #output_lock.release()
                     retval, jpg = cv2.imencode('.jpg', image_for_result)
                     if not retval:
                         raise RuntimeError('Could not encode img to JPEG')
