@@ -20,9 +20,9 @@ from socketserver import ThreadingMixIn
 import argparse
 
 
-mvnc.SetGlobalOption(mvnc.GlobalOption.LOG_LEVEL, 2)
+mvnc.global_set_option(mvnc.GlobalOption.RW_LOG_LEVEL, 2)
 
-devices = mvnc.EnumerateDevices()
+devices = mvnc.enumerate_devices()
 if len(devices) == 0:
     print("No devices found")
     quit()
@@ -32,19 +32,21 @@ devHandle   = []
 graphHandle = []
 
 with open(join(graph_folder, "mobilenetgraph"), mode="rb") as f:
-    graph = f.read()
+    graph_buffer = f.read()
+graph = mvnc.Graph('MobileNet-SSD')
 
 for devnum in range(len(devices)):
     devHandle.append(mvnc.Device(devices[devnum]))
-    devHandle[devnum].OpenDevice()
-    graphHandle.append(devHandle[devnum].AllocateGraph(graph))
-    graphHandle[devnum].SetGraphOption(mvnc.GraphOption.ITERATIONS, 1)
-    iterations = graphHandle[devnum].GetGraphOption(mvnc.GraphOption.ITERATIONS)
+    devHandle[devnum].open()
+    #graphHandle.append(devHandle[devnum].AllocateGraph(graph))
+    #graphHandle[devnum].SetGraphOption(mvnc.GraphOption.ITERATIONS, 1)
+    #iterations = graphHandle[devnum].GetGraphOption(mvnc.GraphOption.ITERATIONS)
+    graphHandle.append(graph.allocate_with_fifos(devHandle[devnum], graph_buffer))
 
 print("\nLoaded Graphs!!!")
 
 cam = cv2.VideoCapture(0)
-#cam = cv2.VideoCapture('/home/pi/SSD_MobileNet/xxxx.mp4')
+#cam = cv2.VideoCapture("http://10.10.33.36:8080/video")
 
 if cam.isOpened() != True:
     print("Did you do sudo modprobe bcm2835-v4l2")
@@ -132,8 +134,10 @@ def inferencer(results, lock, frameBuffer, handle):
 
         now = time.time() 
         im = preprocess_image(img)
-        handle.LoadTensor(im.astype(np.float16), None)
-        out, userobj = handle.GetResult()
+        #handle.LoadTensor(im.astype(np.float16), None)
+        #out, userobj = handle.GetResult()
+        graph.queue_inference_with_fifo_elem(graphHandle[0][0], graphHandle[0][1], im.astype(np.float32), None)
+        out,_  = graphHandle[0][1].read_elem()
         results.put(out)
         print("elapsedtime = ", time.time() - now)
 
@@ -178,14 +182,14 @@ def overlay_on_image(display_image, object_info):
 
             object_info_overlay = object_info[base_index:base_index + 7]
 
-            min_score_percent = 10
+            min_score_percent = 70
             source_image_width = img_cp.shape[1]
             source_image_height = img_cp.shape[0]
 
             base_index = 0
             class_id = object_info_overlay[base_index + 1]
             percentage = int(object_info_overlay[base_index + 2] * 100)
-            if (percentage >= min_score_percent and int(class_id) == 15):
+            if (percentage >= min_score_percent):
                 label_text = LABELS[int(class_id)] + " (" + str(percentage) + "%)"
                 box_left = int(object_info_overlay[base_index + 3] * source_image_width)
                 box_top = int(object_info_overlay[base_index + 4] * source_image_height)
